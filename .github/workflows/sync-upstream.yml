@@ -1,0 +1,41 @@
+name: Upstream Sync for new-api
+
+permissions:
+  contents: write  # 确保 Actions 有权限写入仓库内容
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # 每天午夜运行一次，您可以根据需要调整
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync_latest_from_upstream:
+    name: Sync latest commits from upstream repo
+    runs-on: ubuntu-latest
+    if: ${{ github.event.repository.fork }}  # 仅在仓库是 fork 时运行
+
+    steps:
+      # 步骤 1: 标准 checkout 操作
+      - name: Checkout target repo
+        uses: actions/checkout@v3
+
+      # 步骤 2: 运行同步 Action
+      - name: Sync upstream changes
+        id: sync
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
+        with:
+          upstream_sync_repo: QuantumNous/new-api  # 修改为您的上游仓库
+          upstream_sync_branch: main  # 上游仓库的分支
+          target_sync_branch: main  # 您的目标分支
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }}  # 自动生成的 token，无需额外设置
+
+          # 设置 test_mode 为 true 可以运行测试模式，而不执行实际同步
+          test_mode: false
+
+      - name: Sync check
+        if: failure()  # 如果同步失败，运行此步骤
+        run: |
+          echo "[Error] 由于上游仓库的变更导致同步失败，请手动同步您的 fork 仓库一次。"
+          echo "[Error] 详细教程请查看上游仓库文档或 GitHub 帮助：https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork"
+          echo "或者参考上游仓库：https://github.com/QuantumNous/new-api"
+          exit 1  # 显式标记失败
